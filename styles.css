@@ -1,0 +1,45 @@
+*{box-sizing: border-box}
+body, html { 
+    height: 100%; 
+    overflow: hidden;
+}
+body {
+    background-color: #000000; 
+    color: #ffffff;
+}
+h1 { 
+    font-family: "Playfair Display"; 
+    font-size: 30px; 
+    padding: 10px 0px;
+    margin: 0px; 
+}
+.field-box {
+    position: relative;
+    border: 2px wheat solid;
+    height: 504px;
+    width: 1004px;
+    
+    float: left; 
+    display: flex;
+    flex-wrap: wrap;
+
+}
+.field {
+    /* position: relative;  */
+    width: 50px; 
+    height: 50px;
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+.field .tile { background-image: url(images/tile-.png)}
+.tileW {
+     background-image: url(images/tile-W.png);
+     width: 50px; 
+     height: 50px;
+     background-size: contain;
+     background-repeat: no-repeat; }
+.field .tileE { background-image: url(images/tile-E.png);background-size: 95%;}
+.field .tileP { background-image: url(images/tile-P.png);background-size: 95%;}
+.field .tileHP { background-image: url(images/tile-HP.png)}
+.field .tileSW { background-image: url(images/tile-SW.png)}
+
