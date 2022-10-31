@@ -1,12 +1,19 @@
 /// DATA-FLOW: 
-//   addWalls -> addRooms -> addRoads (generate roads and enemies on this roads)-> addLoot -> init 
+//   addWalls -> addRooms -> addRoads (generate roads and enemies on this roads)-> addLoot(loot+player x,y) -> init 
 
+// HELPERS: 
+// getRoomsSizes - generate rooms with random parameters
+// addRoomsEndpoints - return endPoints of room's x,y , also check if endPoint == border of map ,
+//                                                                              So room can have endpoint om map's border
+//
+//shuffleArray - just shuffle freeCells to spawn loot & player in random free cell
+//moves - eventListeners on keys
 
 const player = {
     el: false,
     x: 0,
     y: 0,
-    step: 5,
+    step: 5,     // should be : cell size (50px in this case) / step = integer
     run: false,
     attack: false,
     direction: false,   
@@ -24,30 +31,16 @@ class Enemy {
     elHP = false
     hp = 100
     damage = 5
-    x = 500
-    y = 0
     step = 2
-    get x(){
-        return this.x
-    }
-    get y(){
-        return this.y
-    }
-    set x(value){
-        this.x = value
-    }
-    set y(value){
-        this.y = value
-    }
-    
 }
 
 
 
-function Map(width,height){
-
-    this.width = width
-    this.height = height
+function Map(field){
+    this.isStarted = true
+    this.fieldBox = field
+    this.width = (field.getBoundingClientRect().width-4)/50
+    this.height = (field.getBoundingClientRect().height-4)/50
     this.numOfRooms = getRandInt(5,7)
     this.roads = {
                 roadsRow :  3 ,                        
@@ -56,15 +49,15 @@ function Map(width,height){
     this.loot = ['HP','HP','SW','SW','SW','SW','SW','SW','SW','SW','SW','SW']
     
     this.set= function(updatedArr,callback){
-        let freeCells = []
         let arr = updatedArr
-        callback(arr,freeCells,addRoads)   //callback = addRooms
+        callback(arr,addRoads)   //callback = addRooms 
     }
 }
 
 
 
-let map = new Map(20,10)
+let field = document.querySelector(`#box`)
+let map = new Map(field)
 map.set(addWalls(),addRooms)
 
 
@@ -82,8 +75,10 @@ function addWalls(){
     return initialArr
 }
 
-function addRooms(arr,freeCells,callback){
+function addRooms(arr,callback){
+    let freeCells = []
     let roomsData = addRoomsEndpoints();
+
     for(let k = 0; k<roomsData.length; k++){
         for(let i=roomsData[k].spawnY; i<roomsData[k].endSpawnY; i++){
             for(let j=roomsData[k].spawnX; j<roomsData[k].endSpawnX; j++){
@@ -114,7 +109,7 @@ function addRooms(arr,freeCells,callback){
     for(let i = 0;i<map.roads.roadsRow;i++){
         let lineY = getRandInt(0,map.height)
         if(arr[lineY]){
-            let enemy = new Enemy(getRandInt(0,map.width-1)*50,lineY*50-4,getRandInt(1,2))
+            let enemy = new Enemy(getRandInt(0,map.width-1)*50,lineY*50-2,getRandInt(1,2))
             enemies.push(enemy)
             for(let j = 0;j<map.width;j++){
                 if (arr[lineY][j] !== "tile"){
@@ -129,19 +124,18 @@ function addRooms(arr,freeCells,callback){
 
  function addLoot(arr,freeCells,enemies,callback,freeCells){
 
-    let randFreeCoord= shuffleArray(freeCells).slice(0,map.loot.length+1)  // plus coords of player
-    for (let k=0; k<map.loot.length; k++){             
-        let j = randFreeCoord[k].x              // x = width 
-        let i = randFreeCoord[k].y             // y = height
-        if(arr[i]){
-            arr[i][j] = map.loot[k] 
-
-        }
-        
-    }
-
-    player.x = randFreeCoord[map.loot.length].x*50
-    player.y =  randFreeCoord[map.loot.length].y*50
+    let randFreeCoord= shuffleArray(freeCells).slice(0,map.loot.length+1)   // +1 --- plus coords of player
+    for (let k=0; k<map.loot.length; k++){                                   
+        let j = randFreeCoord[k].x              // x = width                
+        let i = randFreeCoord[k].y             // y = height                     
+        if(arr[i]){                                                                                     
+            arr[i][j] = map.loot[k]                                    
+        }                                                             
+                                                                     
+    }                                                               
+                                                                   
+    player.x = randFreeCoord[map.loot.length].x*50                
+    player.y =  randFreeCoord[map.loot.length].y*50                               
     callback(arr,enemies,freeCells)                    // callback = init
     
  }
@@ -195,13 +189,16 @@ function getRoomsSizes(count,x,y){
     return arr
 }
 
-function game(res,fieldBox,enemies){              //render map + return obstructions for intervals()
+function game(res,enemies){  //render map + return obstructions for intervals()
+    let fieldBox = map.fieldBox 
+
+                   
     let obstructions = {
         enem :[],
         loot: []
     }
-    
     let idGenerator = 0
+
     for(let i=0; i<map.height;i++){
         for(let j=0;j<map.width;j++){
            if(res[i][j] == 'tile'){
@@ -227,28 +224,30 @@ function game(res,fieldBox,enemies){              //render map + return obstruct
                 obstructions.loot.push({x:j*50, y:i*50,id:`SW${idGenerator}`})  
                 idGenerator++
             }    
-    }}
-    fieldBox.innerHTML += 
-    `<div id = "player" class="field" style="position: absolute;left: ${player.x}px; top: ${player.y}px;">
-        <hr class ="hp"style="position:relative; z-index:10; margin:0; width:${player.hp}%; border-top: 2px solid #00FF00"/>
-        <div class="field tileP"></div>
-    </div>`   // draw Player
-  
-        for (let i = 0;i<enemies.length;i++){
-          
-            fieldBox.innerHTML += 
-            `<div id = "e${i}" class="field" style="position: absolute;left: ${enemies[i].x}px; top: ${enemies[i].y}px;">
-                <hr  style="position:relative; margin:0;width:${enemies[i].hp}%; border-top: 2px solid #FF0000"/>
-                <div  class="field tileE" ></div>
-            </div>`            // draw enemies
+        }}
+        fieldBox.innerHTML += 
+        `<div id = "player" class="field" style="position: absolute;left: ${player.x}px; top: ${player.y}px;">
+            <hr class ="hp"style="position:relative; z-index:10; margin:0; width:${player.hp}%; border-top: 2px solid #00FF00"/>
+            <div class="field tileP"></div>
+        </div>`   // draw Player
+      
+            for (let i = 0;i<enemies.length;i++){
+              
+                fieldBox.innerHTML += 
+                `<div id = "e${i}" class="field" style="position: absolute;left: ${enemies[i].x}px; top: ${enemies[i].y}px;">
+                    <hr  style="position:relative; margin:0;width:${enemies[i].hp}%; border-top: 2px solid #FF0000"/>
+                    <div  class="field tileE" ></div>
+                </div>`            // draw enemies
+    
+                enemies[i].el = `e${i}`
+                obstructions.enem.push(enemies[i])
+            }
+    
+        player.el = document.getElementById('player')
+    
+        return obstructions        
+   
 
-            enemies[i].el = `e${i}`
-            obstructions.enem.push(enemies[i])
-        }
-
-    player.el = document.getElementById('player')
-
-    return obstructions
 }
 
 function moves(){
@@ -288,11 +287,11 @@ function moves(){
 }
 
 
-function intervals(fieldBox,obstructions,freeCells){
+function intervals(obstructions,freeCells){
 
     let loot = obstructions.loot
     let enemies = obstructions.enem
-
+    
 
     // PLAYER MOVE 
 
@@ -374,7 +373,6 @@ function intervals(fieldBox,obstructions,freeCells){
                                 return value
                             }
                         })
-                        console.log(free)
                         if(free.length == 1 && free[0].y*50 == player.y){
                             player.x -= player.step
                             player.el.style.left = `${player.x}px`
@@ -390,12 +388,14 @@ function intervals(fieldBox,obstructions,freeCells){
             }
           
         }
-    },50,freeCells)
+       
+    },40,freeCells)
    
 
         //ENEMIES MOVE 
 
       setInterval(function(){
+        
 
             for(let i=0;i<enemies.length;i++){
               
@@ -412,7 +412,7 @@ function intervals(fieldBox,obstructions,freeCells){
                              }
                             break;
                         case 2:             //right
-                            if (enemies[i].x < fieldBox.getBoundingClientRect().right - 64) {
+                            if (enemies[i].x < map.width*50 - 50) {
                                 let elem = document.getElementById(enemies[i].el)
                                 enemies[i].x += enemies[i].step
                                 elem.style.left = `${enemies[i].x}px`;
@@ -421,7 +421,7 @@ function intervals(fieldBox,obstructions,freeCells){
                             }
                             break;
                         case 3:             //bottom
-                            if (enemies[i].y < fieldBox.getBoundingClientRect().bottom -126) {
+                            if (enemies[i].y < map.height*50-50) {
                                 let elem = document.getElementById(enemies[i].el)
                                 enemies[i].y += enemies[i].step
                                 elem.style.top = `${enemies[i].y}px`;
@@ -448,8 +448,8 @@ function intervals(fieldBox,obstructions,freeCells){
 
     setInterval(function(){
         if(player.run){
-            try{
-                for(let i=0;loot.length;i++){
+            
+                for(let i=0;i<loot.length;i++){
                     
                     if( Math.abs(player.x-loot[i].x)<40 && Math.abs(player.y-loot[i].y)<40){
                         let el = document.getElementById(loot[i].id)
@@ -474,10 +474,6 @@ function intervals(fieldBox,obstructions,freeCells){
                         }
                     }
             }
-            }catch(e){
-                console.log('что-то пошло не так еще раз...... '+ e.message)
-            }
-        
         }
     },150,loot)
 
@@ -485,34 +481,44 @@ function intervals(fieldBox,obstructions,freeCells){
    // ATTACK           
 
     setInterval(function(){
-        for(let i=0;i<enemies.length;i++){
-            let enemy = enemies[i]
-            let elem = document.getElementById(enemy.el)
-            let xl = elem.getBoundingClientRect().left
-            let yt = elem.getBoundingClientRect().top
-            if(Math.abs(player.x+10-xl)<65 && Math.abs(player.y+73-yt)<65){
-                player.hp-=enemy.damage
-                player.el.firstElementChild.style.width = `${player.hp}%`
-                if(player.attack){
-                    enemy.hp-=player.damage
-                    elem.firstElementChild.style.width = `${enemy.hp}%`
-                }   
+        if (enemies.length>0){
+            for(let i = enemies.length-1;i>=0;i--){
+                let enemy = enemies[i]
+                let elem = document.getElementById(enemy.el)
+                let xl = elem.getBoundingClientRect().left
+                let yt = elem.getBoundingClientRect().top
+                if(Math.abs(player.x+10-xl)<65 && Math.abs(player.y+73-yt)<65){
+                    player.hp-=enemy.damage
+                    player.el.firstElementChild.style.width = `${player.hp}%`
+                    if(player.attack){
+                        enemy.hp-=player.damage
+                        elem.firstElementChild.style.width = `${enemy.hp}%`
+                    }   
+                }
+                if(enemy.hp <= 0){
+                    elem.style.display = "none"
+                    enemies.splice(i, 1);
+                    
+                }
+                if(player.hp <= 0){
+                    // player.el.remove()
+                    window.location.reload()
+                 
+                }
             }
-            if(enemy.hp <= 0){
-                elem.style.display = "none"
-            }
-            if(player.hp <= 0){
-                player.el.remove()
-            }
+        }else{
+            window.location.reload()
         }
+        
       
     },150,enemies)
 }
 
-function init(arr,enemies,freeCells){                        // STARTS IN addLoot()
-    let fieldBox = document.querySelector('#box')
-    let obstructions = game(arr,fieldBox,enemies);
+function init(arr,enemies,freeCells){   // starts in addLoot() cos final map array has been generated there
+
+    let obstructions = game(arr,enemies);         
     moves();
-    intervals(fieldBox,obstructions,freeCells);
+    intervals(obstructions,freeCells);
+   
 }
 
